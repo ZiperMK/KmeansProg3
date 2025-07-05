@@ -5,7 +5,8 @@ import java.util.ArrayList;
 import java.util.Random;
 
 public class KMeans {
-    public static List<ClusterCenter> cluster(List<AccumulationSite> sites, int k, int maxIterations) {
+
+    public static ClusteringResult cluster(List<AccumulationSite> sites, int k, int maxIterations) {
         List<ClusterCenter> centers = new ArrayList<>();
         Random rand = new Random();
 
@@ -15,7 +16,12 @@ public class KMeans {
             centers.add(new ClusterCenter(randSite.latitude, randSite.longitude));
         }
 
+        long startTime = System.nanoTime();
+        int cycles = 0;
+
         for (int iter = 0; iter < maxIterations; iter++) {
+            cycles++;
+
             for (ClusterCenter center : centers)
                 center.assignedSites.clear();
 
@@ -34,10 +40,16 @@ public class KMeans {
             }
 
             // Update center positions
+            boolean changed = false;
             for (ClusterCenter center : centers)
-                center.updateCenter();
+                changed |= center.updateCenter(); // Return true if position changed
+
+            if (!changed) break; // Early convergence
         }
 
-        return centers;
+        long endTime = System.nanoTime();
+        long durationMillis = (endTime - startTime) / 1_000_000;
+
+        return new ClusteringResult(centers, cycles, durationMillis);
     }
 }

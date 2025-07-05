@@ -5,6 +5,10 @@ public class AccumulationSite {
     public double longitude;
     public double capacity;
 
+    public AccumulationSite() {
+        // Needed for Jackson
+    }
+
     public AccumulationSite(double latitude, double longitude, double capacity) {
         this.latitude = latitude;
         this.longitude = longitude;

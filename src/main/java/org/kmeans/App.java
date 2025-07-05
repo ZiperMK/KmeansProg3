@@ -1,40 +1,38 @@
 package org.kmeans;
 
 import org.kmeans.gui.MapWindow;
-import org.kmeans.utils.AccumulationSite;
-import org.kmeans.utils.ClusterCenter;
-import org.kmeans.utils.KMeans;
+import org.kmeans.utils.*;
 
 import javax.swing.*;
 import java.util.List;
-import java.util.Random;
-import java.util.ArrayList;
 
 public class App {
     public static void main(String[] args) {
-        // Step 1: Ask user for parameters
-        String siteInput = JOptionPane.showInputDialog("Enter number of accumulation sites:");
-        String clusterInput = JOptionPane.showInputDialog("Enter number of clusters:");
+        try {
+            // Step 1: Ask user for parameters
+            String siteInput = JOptionPane.showInputDialog("Enter number of accumulation sites:");
+            String clusterInput = JOptionPane.showInputDialog("Enter number of clusters:");
 
-        int numSites = Integer.parseInt(siteInput);
-        int numClusters = Integer.parseInt(clusterInput);
+            int numSites = Integer.parseInt(siteInput);
+            int numClusters = Integer.parseInt(clusterInput);
 
-        // Step 2: Generate random accumulation sites (in Europe bounds)
-        List<AccumulationSite> sites = new ArrayList<>();
-        Random rand = new Random();
+            // Step 2: Load sites from JSON or generate extras
+            String pathToJson = "src/main/resources/disposal_sites.json"; // Adjust path if needed
+            List<AccumulationSite> sites = SiteLoader.loadSites(pathToJson, numSites);
 
-        // Rough bounding box: lat 35–60, lon -10 to 30 (Europe)
-        for (int i = 0; i < numSites; i++) {
-            double lat = 35 + rand.nextDouble() * 25;
-            double lon = -10 + rand.nextDouble() * 40;
-            double capacity = 100 + rand.nextDouble() * 900; // tonnes
-            sites.add(new AccumulationSite(lat, lon, capacity));
+            // Step 3: Run clustering
+            ClusteringResult result = KMeans.cluster(sites, numClusters, 100);
+            List<ClusterCenter> clusters = result.centers;
+
+            System.out.println("Cycles: " + result.cycles);
+            System.out.println("Run time: " + result.durationMillis + " ms");
+
+            // Step 4: Open map window
+            SwingUtilities.invokeLater(() -> new MapWindow(clusters));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
         }
-
-        // Step 3: Run clustering
-        List<ClusterCenter> clusters = KMeans.cluster(sites, numClusters, 100);
-
-        // Step 4: Open map window
-        SwingUtilities.invokeLater(() -> new MapWindow(clusters));
     }
 }

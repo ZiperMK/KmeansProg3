@@ -14,14 +14,24 @@ public class ClusterCenter {
         this.longitude = longitude;
     }
 
-    public void updateCenter() {
-        if (assignedSites.isEmpty()) return;
-        double latSum = 0, lonSum = 0;
+    public boolean updateCenter() {
+        if (assignedSites.isEmpty()) return false;
+    
+        double sumLat = 0, sumLon = 0;
         for (AccumulationSite site : assignedSites) {
-            latSum += site.latitude;
-            lonSum += site.longitude;
+            sumLat += site.latitude;
+            sumLon += site.longitude;
         }
-        this.latitude = latSum / assignedSites.size();
-        this.longitude = lonSum / assignedSites.size();
+    
+        double newLat = sumLat / assignedSites.size();
+        double newLon = sumLon / assignedSites.size();
+    
+        boolean changed = (newLat != this.latitude || newLon != this.longitude);
+        this.latitude = newLat;
+        this.longitude = newLon;
+    
+        return changed;
     }
 }
+
+
