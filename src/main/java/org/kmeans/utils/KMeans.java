@@ -44,6 +44,7 @@ public class KMeans {
             for (ClusterCenter center : centers)
                 changed |= center.updateCenter(); // Return true if position changed
 
+            // COMMENT THIS OUT FOR TESTING!!!
             if (!changed) break; // Early convergence
         }
 
