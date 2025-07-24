@@ -3,9 +3,12 @@ package org.kmeans.utils;
 import java.util.List;
 
 public class ClusteringResult {
-    public final List<ClusterCenter> centers;
-    public final int cycles;
-    public final long durationMillis;
+    public List<ClusterCenter> centers;
+    public int cycles;
+    public long durationMillis;
+
+    // ✅ Default constructor needed by Jackson
+    public ClusteringResult() {}
 
     public ClusteringResult(List<ClusterCenter> centers, int cycles, long durationMillis) {
         this.centers = centers;

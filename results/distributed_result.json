@@ -1,0 +1,25 @@
+{
+  "centers" : [ {
+    "latitude" : 48.09145738181818,
+    "longitude" : 15.560769779110252,
+    "assignedSites" : [ ]
+  }, {
+    "latitude" : 58.7569457409483,
+    "longitude" : 16.710918613362068,
+    "assignedSites" : [ ]
+  }, {
+    "latitude" : 36.0299638,
+    "longitude" : 26.7811844,
+    "assignedSites" : [ ]
+  }, {
+    "latitude" : 44.717049941363626,
+    "longitude" : -1.2449601695454546,
+    "assignedSites" : [ ]
+  }, {
+    "latitude" : 38.592317776923075,
+    "longitude" : 23.930281842307693,
+    "assignedSites" : [ ]
+  } ],
+  "cycles" : 50,
+  "durationMillis" : 683
+}

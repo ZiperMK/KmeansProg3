@@ -16,12 +16,13 @@ public class DistributedKMeansMPJ {
         for (int i = 0; i < args.length; i++) {
             System.out.println("  args[" + i + "] = " + args[i]);
         }
+
         // --- Init MPI ---
         MPI.Init(args);
         int rank = MPI.COMM_WORLD.Rank();
         int size = MPI.COMM_WORLD.Size();
 
-        // We now expect 3 args: JSON path, numClusters, numSites
+        // Expect LAST 3 args: sites.json, numClusters, numSites
         if (args.length < 3) {
             if (rank == 0) {
                 System.out.println(
@@ -47,12 +48,12 @@ public class DistributedKMeansMPJ {
         MPI.Finalize();
     }
 
-    // --- Master ---
+    // --- MASTER ---
     private static void runMaster(String sitesFile, int k, int size, int numSitesRequested) throws Exception {
-        
-        System.out.println("[MASTER] Loading " + numSitesRequested + " sites...");
 
-        // Load ONLY the requested number of sites, no Integer.MAX_VALUE anymore
+        long startTime = System.currentTimeMillis(); // ✅ Start runtime tracking
+
+        System.out.println("[MASTER] Loading " + numSitesRequested + " sites...");
         List<AccumulationSite> allSites = SiteLoader.loadSites(sitesFile, numSitesRequested);
         System.out.println("[MASTER] Loaded " + allSites.size() + " sites.");
 
@@ -63,7 +64,7 @@ public class DistributedKMeansMPJ {
 
         System.out.println("[MASTER] Sending data chunks to workers...");
         for (int worker = 1; worker < size; worker++) {
-            Object[] sendBuf = new Object[] { chunks.get(worker - 1) };
+            Object[] sendBuf = new Object[]{chunks.get(worker - 1)};
             MPI.COMM_WORLD.Send(sendBuf, 0, 1, MPI.OBJECT, worker, 0);
         }
 
@@ -96,16 +97,36 @@ public class DistributedKMeansMPJ {
         }
 
         System.out.println("[MASTER] Final centroids:");
+        List<ClusterCenter> clusterCenters = new ArrayList<>();
         for (int i = 0; i < centroids.size(); i++) {
-            System.out.println("Cluster " + i + ": " + Arrays.toString(centroids.get(i)));
+            double[] c = centroids.get(i);
+            System.out.println("Cluster " + i + ": " + Arrays.toString(c));
+            clusterCenters.add(new ClusterCenter(c[0], c[1])); // ✅ Convert to ClusterCenter
         }
+
+        long endTime = System.currentTimeMillis(); // ✅ End runtime
+        long durationMillis = endTime - startTime;
+        int cycles = MAX_ITERATIONS;
+
+        // ✅ Wrap result
+        ClusteringResult result = new ClusteringResult(clusterCenters, cycles, durationMillis);
+
+        // ✅ Ensure results folder exists
+        File resultsDir = new File("results");
+        if (!resultsDir.exists()) {
+            resultsDir.mkdirs();
+        }
+
+        // ✅ Save to JSON for App.java
+        ResultSaver.saveResult(result, "results/distributed_result.json");
+        System.out.println("[MASTER] ✅ Distributed result saved to results/distributed_result.json");
     }
 
-    // --- Worker ---
+    // --- WORKER ---
     private static void runWorker(int k) throws Exception {
         int rank = MPI.COMM_WORLD.Rank();
 
-        // ✅ 1. Receive the chunk of data for this worker
+        // ✅ Receive chunk of data
         Object[] recvBuf = new Object[1];
         MPI.COMM_WORLD.Recv(recvBuf, 0, 1, MPI.OBJECT, 0, 0);
 
@@ -114,10 +135,10 @@ public class DistributedKMeansMPJ {
 
         System.out.println("[WORKER " + rank + "] Received " + localData.size() + " points.");
 
-        // ✅ 2. Iterate for each iteration of K-means
+        // ✅ Iterate each step
         for (int iter = 0; iter < MAX_ITERATIONS; iter++) {
 
-            // ✅ 2a. Receive the current centroids from master
+            // ✅ Receive centroids
             Object[] centroidArray = new Object[k];
             MPI.COMM_WORLD.Bcast(centroidArray, 0, k, MPI.OBJECT, 0);
 
@@ -128,15 +149,15 @@ public class DistributedKMeansMPJ {
                     centroids.add((double[]) obj);
                 } else {
                     System.err.println("[WORKER " + rank + "] Warning: received null centroid");
-                    centroids.add(new double[] { 0.0, 0.0 }); // fallback
+                    centroids.add(new double[]{0.0, 0.0}); // fallback
                 }
             }
 
-            // ✅ 2b. Compute partial result for this worker's local data
+            // ✅ Compute partial result
             PartialResult pr = computePartialResult(localData, centroids);
 
-            // ✅ 2c. Send partial result back to master
-            MPI.COMM_WORLD.Send(new Object[] { pr }, 0, 1, MPI.OBJECT, 0, 1);
+            // ✅ Send partial result back
+            MPI.COMM_WORLD.Send(new Object[]{pr}, 0, 1, MPI.OBJECT, 0, 1);
 
             System.out.println("[WORKER " + rank + "] Iteration " + (iter + 1) + " done.");
         }
@@ -148,7 +169,7 @@ public class DistributedKMeansMPJ {
     private static List<double[]> extractCoordinates(List<AccumulationSite> sites) {
         List<double[]> coords = new ArrayList<>();
         for (AccumulationSite s : sites) {
-            coords.add(new double[] { s.latitude, s.longitude });
+            coords.add(new double[]{s.latitude, s.longitude});
         }
         return coords;
     }
@@ -156,7 +177,7 @@ public class DistributedKMeansMPJ {
     private static List<List<double[]>> splitData(List<double[]> data, int numChunks) {
         List<List<double[]>> chunks = new ArrayList<>();
         int chunkSize = (int) Math.ceil((double) data.size() / numChunks);
-    
+
         for (int i = 0; i < data.size(); i += chunkSize) {
             // ✅ Convert subList into a real ArrayList (serializable)
             List<double[]> chunk = new ArrayList<>(data.subList(i, Math.min(i + chunkSize, data.size())));
@@ -164,7 +185,6 @@ public class DistributedKMeansMPJ {
         }
         return chunks;
     }
-    
 
     private static List<double[]> initializeRandomCentroids(List<double[]> points, int k) {
         List<double[]> shuffled = new ArrayList<>(points);
@@ -212,12 +232,12 @@ public class DistributedKMeansMPJ {
         List<double[]> newCentroids = new ArrayList<>();
         for (int i = 0; i < sums.length; i++) {
             if (counts[i] > 0) {
-                newCentroids.add(new double[] {
+                newCentroids.add(new double[]{
                         sums[i][0] / counts[i],
                         sums[i][1] / counts[i]
                 });
             } else {
-                newCentroids.add(new double[] { sums[i][0], sums[i][1] }); // unchanged if empty
+                newCentroids.add(new double[]{sums[i][0], sums[i][1]}); // unchanged if empty
             }
         }
         return newCentroids;

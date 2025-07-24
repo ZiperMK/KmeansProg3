@@ -54,45 +54,37 @@ public class App {
                         break;
                     case "Distributed ":
                         try {
-                            int np = 4; // 1 master + 3 workers (adjust if needed)
+                            int np = 4; // 1 master + 3 workers
 
                             String mpjHome = System.getenv("MPJ_HOME");
                             if (mpjHome == null) {
                                 throw new RuntimeException("MPJ_HOME not set. Cannot run distributed mode.");
                             }
 
-                            // Detect OS
                             boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
                             String pathSep = isWindows ? ";" : ":";
 
-                            // MPJ run command
                             String mpjRunCmd = isWindows
                                     ? mpjHome + "\\bin\\mpjrun.bat"
                                     : mpjHome + "/bin/mpjrun.sh";
 
-                            // ✅ Build full classpath with ALL jars from target/dependency
                             StringBuilder cpBuilder = new StringBuilder("target/classes");
 
                             File depDir = new File("target/dependency");
-                            if (depDir.exists() && depDir.isDirectory()) {
-                                File[] jars = depDir.listFiles(file -> file.getName().endsWith(".jar"));
-
+                            if (depDir.exists()) {
+                                File[] jars = depDir.listFiles(f -> f.getName().endsWith(".jar"));
                                 if (jars != null) {
                                     for (File jar : jars) {
-                                        cpBuilder.append(pathSep)
-                                                .append("target/dependency/")
-                                                .append(jar.getName());
+                                        cpBuilder.append(pathSep).append("target/dependency/").append(jar.getName());
                                     }
                                 }
                             }
-
-                            // Add current directory at the end
                             cpBuilder.append(pathSep).append(".");
 
                             String classPath = cpBuilder.toString();
                             System.out.println("MPJ Classpath used: " + classPath);
 
-                            // Build the MPJ command
+                            // Run the distributed job
                             ProcessBuilder pb = new ProcessBuilder(
                                     mpjRunCmd,
                                     "-np", String.valueOf(np),
@@ -101,12 +93,29 @@ public class App {
                                     "org.kmeans.utils.DistributedKMeansMPJ",
                                     "src/main/resources/disposal_sites.json",
                                     String.valueOf(numClusters),
-                                    String.valueOf(numSites) 
-                            );
-
-                            pb.inheritIO(); // forward stdout/stderr to console
+                                    String.valueOf(numSites));
+                            pb.inheritIO();
                             Process proc = pb.start();
                             proc.waitFor();
+
+                            // ✅ Now load the result written by DistributedKMeansMPJ
+                            ClusteringResult distResult = ResultSaver.loadResult("results/distributed_result.json");
+                            if (distResult == null) {
+                                throw new RuntimeException("Distributed mode did not produce a valid result file.");
+                            }
+                            // Reassign sites to nearest cluster for GUI coloring
+                            for (AccumulationSite site : sites) {
+                                int nearest = findNearestCluster(site, distResult.centers);
+                                distResult.centers.get(nearest).assignedSites.add(site);
+                            }
+
+                            // Same post-processing as other modes
+                            System.out.println("Cycles: " + distResult.cycles);
+                            System.out.println("Run time: " + distResult.durationMillis + " ms");
+
+                            if (enableGUI) {
+                                SwingUtilities.invokeLater(() -> new MapWindow(distResult.centers));
+                            }
 
                         } catch (Exception ex) {
                             ex.printStackTrace();
@@ -114,7 +123,6 @@ public class App {
                                     "Failed to launch distributed mode: " + ex.getMessage());
                         }
                         return;
-
                     case "Sequential":
                     default:
                         result = KMeans.cluster(sites, numClusters, 100);
@@ -136,4 +144,18 @@ public class App {
             JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
         }
     }
+    private static int findNearestCluster(AccumulationSite site, List<ClusterCenter> centers) {
+        int best = 0;
+        double bestDist = Double.MAX_VALUE;
+        for (int i = 0; i < centers.size(); i++) {
+            double d = Math.pow(site.latitude - centers.get(i).latitude, 2)
+                     + Math.pow(site.longitude - centers.get(i).longitude, 2);
+            if (d < bestDist) {
+                bestDist = d;
+                best = i;
+            }
+        }
+        return best;
+    }
+    
 }
