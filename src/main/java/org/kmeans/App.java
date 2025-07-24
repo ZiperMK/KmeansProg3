@@ -4,13 +4,15 @@ import org.kmeans.gui.MapWindow;
 import org.kmeans.utils.*;
 
 import javax.swing.*;
+
+import java.io.File;
 import java.util.List;
 
 public class App {
     public static void main(String[] args) {
         try {
             // Step 1: Choose execution mode
-            String[] modes = {"Sequential", "Parallel", "Distributed (Not Available)"};
+            String[] modes = { "Sequential", "Parallel", "Distributed " };
             String selectedMode = (String) JOptionPane.showInputDialog(
                     null,
                     "Choose execution mode:",
@@ -50,9 +52,69 @@ public class App {
                     case "Parallel":
                         result = KMeansParallel.cluster(sites, numClusters, 100);
                         break;
-                    case "Distributed (Not Available)":
-                        JOptionPane.showMessageDialog(null, "Distributed mode is not yet implemented.");
+                    case "Distributed ":
+                        try {
+                            int np = 4; // 1 master + 3 workers (adjust if needed)
+
+                            String mpjHome = System.getenv("MPJ_HOME");
+                            if (mpjHome == null) {
+                                throw new RuntimeException("MPJ_HOME not set. Cannot run distributed mode.");
+                            }
+
+                            // Detect OS
+                            boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+                            String pathSep = isWindows ? ";" : ":";
+
+                            // MPJ run command
+                            String mpjRunCmd = isWindows
+                                    ? mpjHome + "\\bin\\mpjrun.bat"
+                                    : mpjHome + "/bin/mpjrun.sh";
+
+                            // ✅ Build full classpath with ALL jars from target/dependency
+                            StringBuilder cpBuilder = new StringBuilder("target/classes");
+
+                            File depDir = new File("target/dependency");
+                            if (depDir.exists() && depDir.isDirectory()) {
+                                File[] jars = depDir.listFiles(file -> file.getName().endsWith(".jar"));
+
+                                if (jars != null) {
+                                    for (File jar : jars) {
+                                        cpBuilder.append(pathSep)
+                                                .append("target/dependency/")
+                                                .append(jar.getName());
+                                    }
+                                }
+                            }
+
+                            // Add current directory at the end
+                            cpBuilder.append(pathSep).append(".");
+
+                            String classPath = cpBuilder.toString();
+                            System.out.println("MPJ Classpath used: " + classPath);
+
+                            // Build the MPJ command
+                            ProcessBuilder pb = new ProcessBuilder(
+                                    mpjRunCmd,
+                                    "-np", String.valueOf(np),
+                                    "-dev", "multicore",
+                                    "-cp", classPath,
+                                    "org.kmeans.utils.DistributedKMeansMPJ",
+                                    "src/main/resources/disposal_sites.json",
+                                    String.valueOf(numClusters),
+                                    String.valueOf(numSites) 
+                            );
+
+                            pb.inheritIO(); // forward stdout/stderr to console
+                            Process proc = pb.start();
+                            proc.waitFor();
+
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                            JOptionPane.showMessageDialog(null,
+                                    "Failed to launch distributed mode: " + ex.getMessage());
+                        }
                         return;
+
                     case "Sequential":
                     default:
                         result = KMeans.cluster(sites, numClusters, 100);
