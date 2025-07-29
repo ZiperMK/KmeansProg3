@@ -1,45 +1,25 @@
 {
   "centers" : [ {
-    "latitude" : 39.734629464762,
-    "longitude" : -5.462114634447645,
+    "latitude" : 48.85651781666667,
+    "longitude" : 7.958163955555556,
     "assignedSites" : [ ]
   }, {
-    "latitude" : 49.55975168591275,
-    "longitude" : 19.737658866877148,
+    "latitude" : 47.881816154545454,
+    "longitude" : 18.09632701818182,
     "assignedSites" : [ ]
   }, {
-    "latitude" : 50.684625047177114,
-    "longitude" : 14.26939825521082,
+    "latitude" : 62.23333595384615,
+    "longitude" : 22.816306553846157,
     "assignedSites" : [ ]
   }, {
-    "latitude" : 42.77526765864303,
-    "longitude" : 24.693960971270087,
+    "latitude" : 56.75877819583334,
+    "longitude" : 12.798271495833333,
     "assignedSites" : [ ]
   }, {
-    "latitude" : 43.99352480283493,
-    "longitude" : 13.239656129724851,
-    "assignedSites" : [ ]
-  }, {
-    "latitude" : 57.965354891089255,
-    "longitude" : 24.40548681906799,
-    "assignedSites" : [ ]
-  }, {
-    "latitude" : 49.47184065275913,
-    "longitude" : 6.794865042076602,
-    "assignedSites" : [ ]
-  }, {
-    "latitude" : 57.57391753676705,
-    "longitude" : 12.306863135165367,
-    "assignedSites" : [ ]
-  }, {
-    "latitude" : 53.7561480150612,
-    "longitude" : -4.207588770694551,
-    "assignedSites" : [ ]
-  }, {
-    "latitude" : 45.31025336480532,
-    "longitude" : 1.2701280106257258,
+    "latitude" : 42.77179414166667,
+    "longitude" : -5.71902765,
     "assignedSites" : [ ]
   } ],
   "cycles" : 50,
-  "durationMillis" : 950
+  "durationMillis" : 815
 }

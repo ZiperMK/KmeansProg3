@@ -23,7 +23,7 @@ public class SiteLoader {
     private static boolean landPolygonsLoaded = false;
 
     public static List<AccumulationSite> loadSites(String jsonPath, int count) {
-        List<AccumulationSite> sites = new ArrayList<>();
+        List<AccumulationSite> allSites = new ArrayList<>();
     
         try {
             File file = new File(jsonPath);
@@ -50,21 +50,37 @@ public class SiteLoader {
                     continue; // Skip unrecognized entry
                 }
     
-                sites.add(new AccumulationSite(lat, lon, cap));
+                allSites.add(new AccumulationSite(lat, lon, cap));
             }
     
-            // If we didn’t get enough, generate the rest
-            if (sites.size() < count) {
-                System.out.println("⚠ Only " + sites.size() + " loaded. Generating " + (count - sites.size()) + " random sites...");
-                sites.addAll(generateRandomSites(count - sites.size()));
+            if (allSites.isEmpty()) {
+                System.out.println("⚠ No valid entries in file. Falling back to random generation.");
+                return generateRandomSites(count);
             }
+    
+            // If count is smaller than half of the available dataset → pick random
+            if (count <= allSites.size() / 2) {
+                Collections.shuffle(allSites);
+                return new ArrayList<>(allSites.subList(0, count));
+            }
+    
+            List<AccumulationSite> result = new ArrayList<>(allSites);
+    
+            // If not enough, fill with random
+            if (result.size() < count) {
+                System.out.println("⚠ Only " + result.size() + " loaded. Generating " + (count - result.size()) + " random sites...");
+                result.addAll(generateRandomSites(count - result.size()));
+            } else {
+                // Trim to exactly count entries
+                result = result.subList(0, count);
+            }
+    
+            return result;
     
         } catch (Exception e) {
             System.out.println("⚠ Failed to read file or parse. Falling back to random generation.");
             return generateRandomSites(count);
         }
-    
-        return sites;
     }
     
 

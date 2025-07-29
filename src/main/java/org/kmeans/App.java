@@ -32,14 +32,29 @@ public class App {
             }
 
             // Step 2: Ask user for parameters
-            String siteInput = JOptionPane.showInputDialog("Enter number of accumulation sites:");
-            String clusterInput = JOptionPane.showInputDialog("Enter number of clusters:");
-            String guiInput = JOptionPane.showInputDialog("Enable GUI? (yes/no):");
+            int maxSites = HardwareInfo.estimateMaxSites();
+            int maxClusters = HardwareInfo.estimateMaxClusters(maxSites);
 
-            int numSites = Integer.parseInt(siteInput);
-            int numClusters = Integer.parseInt(clusterInput);
-            boolean enableGUI = guiInput.trim().equalsIgnoreCase("yes");
+            String siteInput = JOptionPane
+                    .showInputDialog("Enter number of accumulation sites (max: " + maxSites + "):");
+            int numSites = Math.min(Integer.parseInt(siteInput), maxSites);
 
+            String clusterInput = JOptionPane.showInputDialog("Enter number of clusters (max: " + maxClusters + "):");
+            int numClusters = Math.min(Integer.parseInt(clusterInput), maxClusters);
+            String[] options = {"Yes", "No"};
+            String guiInput = (String) JOptionPane.showInputDialog(
+                null,
+                "Enable GUI?",
+                "Choose Option",
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                options,
+                options[0] // default selection
+            );
+            boolean enableGUI = "Yes".equalsIgnoreCase(guiInput);
+            if (Integer.parseInt(siteInput) > maxSites) {
+                System.out.println("⚠️ Requested sites exceed RAM-safe estimate. Limited to " + maxSites);
+            }
             // Step 3: Print hardware info
             HardwareInfo.printSystemStats();
 
@@ -59,7 +74,11 @@ public class App {
                         break;
                     case "Distributed ":
                         try {
-                            int np = 4; // 1 master + 3 workers
+                            int availableCores = Runtime.getRuntime().availableProcessors();
+                            int np = Math.max(2, availableCores); // 1 master + N workers
+                            System.out
+                                    .println("Detected " + availableCores + " CPU cores. Running distributed mode with "
+                                            + np + " processes (1 master + " + (np - 1) + " workers).");
 
                             String mpjHome = System.getenv("MPJ_HOME");
                             if (mpjHome == null) {
@@ -120,7 +139,12 @@ public class App {
                             System.out.println("Run time: " + distResult.durationMillis + " ms");
 
                             if (enableGUI) {
-                                SwingUtilities.invokeLater(() -> new MapWindow(distResult.centers));
+                                long maxMemory = HardwareInfo.getMaxMemoryMB();
+                                if (maxMemory < 512 && enableGUI) {
+                                    System.out.println("Disabling GUI due to low memory.");
+                                } else {
+                                    SwingUtilities.invokeLater(() -> new MapWindow(distResult.centers));
+                                }
                             }
 
                         } catch (Exception ex) {
@@ -141,7 +165,12 @@ public class App {
 
                 // Step 6: Show GUI if enabled
                 if (enableGUI) {
-                    SwingUtilities.invokeLater(() -> new MapWindow(clusters));
+                    long maxMemory = HardwareInfo.getMaxMemoryMB();
+                    if (maxMemory < 512 && enableGUI) {
+                        System.out.println("Disabling GUI due to low memory.");
+                    } else {
+                        SwingUtilities.invokeLater(() -> new MapWindow(clusters));
+                    }
                 }
             }).start();
 
