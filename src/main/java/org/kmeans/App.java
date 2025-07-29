@@ -3,9 +3,12 @@ package org.kmeans;
 import org.kmeans.gui.MapWindow;
 import org.kmeans.utils.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import javax.swing.*;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 public class App {
@@ -43,6 +46,8 @@ public class App {
             // Step 4: Load sites
             String pathToJson = "src/main/resources/disposal_sites.json";
             List<AccumulationSite> sites = SiteLoader.loadSites(pathToJson, numSites);
+            String tempInputPath = "results/temp_sites_input.json";
+            saveSites(sites, tempInputPath); // You’ll need this helper
 
             // Step 5: Run clustering in a background thread
             new Thread(() -> {
@@ -91,9 +96,10 @@ public class App {
                                     "-dev", "multicore",
                                     "-cp", classPath,
                                     "org.kmeans.utils.DistributedKMeansMPJ",
-                                    "src/main/resources/disposal_sites.json",
+                                    tempInputPath, // ✅ use the saved file
                                     String.valueOf(numClusters),
                                     String.valueOf(numSites));
+
                             pb.inheritIO();
                             Process proc = pb.start();
                             proc.waitFor();
@@ -144,12 +150,13 @@ public class App {
             JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
         }
     }
+
     private static int findNearestCluster(AccumulationSite site, List<ClusterCenter> centers) {
         int best = 0;
         double bestDist = Double.MAX_VALUE;
         for (int i = 0; i < centers.size(); i++) {
             double d = Math.pow(site.latitude - centers.get(i).latitude, 2)
-                     + Math.pow(site.longitude - centers.get(i).longitude, 2);
+                    + Math.pow(site.longitude - centers.get(i).longitude, 2);
             if (d < bestDist) {
                 bestDist = d;
                 best = i;
@@ -157,5 +164,14 @@ public class App {
         }
         return best;
     }
-    
+
+    public static void saveSites(List<AccumulationSite> sites, String path) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.writerWithDefaultPrettyPrinter().writeValue(new File(path), sites);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to save sites to file: " + path, e);
+        }
+    }
+
 }
